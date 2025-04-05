@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor</title>
+    <script src="static/js/pdf.js"></script>
+    <script src="node_modules/pdf-lib/dist/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-top: 100px; /* ヘッダーの高さ分の余白 */
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .operation-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .page-operation {
+            background-color: #4CAF50; /* 緑色 - ページ操作 */
+        }
+        .page-operation:hover {
+            background-color: #45a049;
+        }
+        .merge-operation {
+            background-color: #2196F3; /* 青色 - 結合操作 */
+        }
+        .merge-operation:hover {
+            background-color: #1976D2;
+        }
+        .download-operation {
+            background-color: #FF9800; /* オレンジ色 - ダウンロード操作 */
+        }
+        .download-operation:hover {
+            background-color: #F57C00;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .page-preview {
+            border: 2px solid #ddd;
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+        .page-preview.selected {
+            border-color: #4CAF50;
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        .page-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .canvas-container {
+            position: relative;
+        }
+        .page-info {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .merge-section {
+            margin-top: 20px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            display: none;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        .loading-container {
+            text-align: center;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">処理中...</div>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1>PDF Editor</h1>
+        <div class="header-controls">
+            <button class="page-operation" onclick="duplicateSelectedPages()">選択ページを複製</button>
+            <button class="page-operation" onclick="deleteSelectedPages()">選択ページを削除</button>
+            <button class="page-operation" onclick="clearSelection()">選択を解除</button>
+            <button class="merge-operation" onclick="document.getElementById('mergeFile').click()">PDFを結合</button>
+            <input type="file" id="mergeFile" accept=".pdf" style="display: none" onchange="mergePDFs()">
+            <button class="download-operation" onclick="downloadModifiedPDF()">PDFをダウンロード</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="operation-section">
+            <h2>PDFをアップロード</h2>
+            <input type="file" id="pdfFile" accept=".pdf">
+            <div class="page-info" id="pageInfo"></div>
+            <div class="preview-container" id="previewContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.jsの設定
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'static/js/pdf.worker.js';
+
+        let currentPdf = null;
+        let selectedPages = new Set();
+        let pdfDoc = null;
+        const previewContainer = document.getElementById('previewContainer');
+        const pageInfo = document.getElementById('pageInfo');
+
+        document.getElementById('pdfFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentPdf = file;
+                selectedPages.clear();
+                previewContainer.innerHTML = '';
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                    console.log('PDF loaded successfully:', pdfDoc);
+                    
+                    pageInfo.textContent = `全${pdfDoc.numPages}ページ`;
+                    await updatePreview();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    alert('PDFの読み込み中にエラーが発生しました');
+                }
+            }
+        });
+
+        function togglePageSelection(pageNumber) {
+            const pageElement = document.querySelector(`.page-preview[data-page-number="${pageNumber}"]`);
+            if (selectedPages.has(pageNumber)) {
+                selectedPages.delete(pageNumber);
+                pageElement.classList.remove('selected');
+            } else {
+                selectedPages.add(pageNumber);
+                pageElement.classList.add('selected');
+            }
+            console.log('Selected pages:', Array.from(selectedPages));
+        }
+
+        function clearSelection() {
+            selectedPages.clear();
+            document.querySelectorAll('.page-preview').forEach(el => {
+                el.classList.remove('selected');
+            });
+        }
+
+        function showLoading(message = '処理中...') {
+            document.getElementById('loadingText').textContent = message;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.querySelectorAll('button').forEach(button => {
+                button.disabled = true;
+            });
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.querySelectorAll('button').forEach(button => {
+                button.disabled = false;
+            });
+        }
+
+        async function updatePreview() {
+            try {
+                showLoading('プレビューを更新中...');
+                previewContainer.innerHTML = '';
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const viewport = page.getViewport({scale: 0.5});
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-preview';
+                    pageDiv.dataset.pageNumber = i - 1;
+                    
+                    // 選択状態を復元
+                    if (selectedPages.has(i - 1)) {
+                        pageDiv.classList.add('selected');
+                    }
+                    
+                    const pageNumber = document.createElement('div');
+                    pageNumber.className = 'page-number';
+                    pageNumber.textContent = `ページ ${i}`;
+                    
+                    const canvasContainer = document.createElement('div');
+                    canvasContainer.className = 'canvas-container';
+                    canvasContainer.appendChild(canvas);
+                    canvasContainer.appendChild(pageNumber);
+                    
+                    pageDiv.appendChild(canvasContainer);
+                    pageDiv.addEventListener('click', () => togglePageSelection(i - 1));
+                    
+                    previewContainer.appendChild(pageDiv);
+                }
+                pageInfo.textContent = `全${pdfDoc.numPages}ページ`;
+            } catch (error) {
+                console.error('Error updating preview:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function downloadModifiedPDF() {
+            if (!currentPdf) {
+                alert('PDFがアップロードされていません');
+                return;
+            }
+
+            try {
+                console.log('Starting PDF download...');
+                const url = URL.createObjectURL(currentPdf);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'modified_document.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                alert('PDFのダウンロード中にエラーが発生しました');
+            }
+        }
+
+        async function mergePDFs() {
+            const mergeFile = document.getElementById('mergeFile').files[0];
+            if (!mergeFile) {
+                console.log('No PDF selected for merging');
+                return;
+            }
+
+            try {
+                showLoading('PDFを結合中...');
+                console.log('Starting PDF merge...');
+                const currentArrayBuffer = await currentPdf.arrayBuffer();
+                const mergeArrayBuffer = await mergeFile.arrayBuffer();
+                
+                const currentPdfDoc = await PDFLib.PDFDocument.load(currentArrayBuffer);
+                const mergePdfDoc = await PDFLib.PDFDocument.load(mergeArrayBuffer);
+                const newPdfDoc = await PDFLib.PDFDocument.create();
+                
+                // 現在のPDFのページをコピー
+                const currentPages = await newPdfDoc.copyPages(
+                    currentPdfDoc,
+                    Array.from({length: currentPdfDoc.getPageCount()}, (_, i) => i)
+                );
+                for (const page of currentPages) {
+                    newPdfDoc.addPage(page);
+                }
+                
+                // 結合するPDFのページをコピー
+                const mergePages = await newPdfDoc.copyPages(
+                    mergePdfDoc,
+                    Array.from({length: mergePdfDoc.getPageCount()}, (_, i) => i)
+                );
+                for (const page of mergePages) {
+                    newPdfDoc.addPage(page);
+                }
+                
+                const pdfBytes = await newPdfDoc.save();
+                currentPdf = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // プレビューを更新
+                const arrayBuffer = await currentPdf.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                await updatePreview();
+                
+                console.log('PDF merge completed successfully');
+            } catch (error) {
+                console.error('Error merging PDFs:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function deleteSelectedPages() {
+            if (selectedPages.size === 0) {
+                console.log('No pages selected for deletion');
+                return;
+            }
+
+            try {
+                showLoading('ページを削除中...');
+                console.log('Starting page deletion...');
+                const arrayBuffer = await currentPdf.arrayBuffer();
+                const sourcePdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const newPdfDoc = await PDFLib.PDFDocument.create();
+                
+                // 選択されていないページのみをコピー
+                const pages = await newPdfDoc.copyPages(
+                    sourcePdfDoc,
+                    Array.from({length: sourcePdfDoc.getPageCount()}, (_, i) => i)
+                        .filter(i => !selectedPages.has(i))
+                );
+                
+                for (const page of pages) {
+                    newPdfDoc.addPage(page);
+                }
+                
+                const pdfBytes = await newPdfDoc.save();
+                currentPdf = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // プレビューを更新
+                const arrayBuffer2 = await currentPdf.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer2}).promise;
+                
+                // 選択状態をクリア
+                selectedPages.clear();
+                await updatePreview();
+                
+                console.log('Page deletion completed successfully');
+            } catch (error) {
+                console.error('Error deleting pages:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function duplicateSelectedPages() {
+            if (selectedPages.size === 0) {
+                console.log('No pages selected for duplication');
+                return;
+            }
+
+            try {
+                showLoading('ページを複製中...');
+                console.log('Starting page duplication...');
+                const arrayBuffer = await currentPdf.arrayBuffer();
+                const sourcePdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const newPdfDoc = await PDFLib.PDFDocument.create();
+                
+                // 元のPDFのページをコピー
+                const pages = await newPdfDoc.copyPages(sourcePdfDoc, Array.from({length: sourcePdfDoc.getPageCount()}, (_, i) => i));
+                for (let i = 0; i < pages.length; i++) {
+                    newPdfDoc.addPage(pages[i]);
+                    if (selectedPages.has(i)) {
+                        newPdfDoc.addPage(pages[i]);
+                    }
+                }
+                
+                const pdfBytes = await newPdfDoc.save();
+                currentPdf = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // プレビューを更新
+                const arrayBuffer2 = await currentPdf.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer2}).promise;
+                
+                // 選択状態をクリア
+                selectedPages.clear();
+                await updatePreview();
+                
+                console.log('Page duplication completed successfully');
+            } catch (error) {
+                console.error('Error duplicating pages:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+    </script>
+</body>
+</html> 
