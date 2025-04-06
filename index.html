@@ -411,11 +411,15 @@
                 const arrayBuffer = await currentPdf.arrayBuffer();
                 const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
                 
-                // 選択されたページを順番に複製
+                // 選択されたページを昇順にソート
                 const pagesToDuplicate = Array.from(selectedPages).sort((a, b) => a - b);
+                
+                // ページを複製する際のオフセットを考慮
+                let offset = 0;
                 for (const pageIndex of pagesToDuplicate) {
-                    const [copiedPage] = await pdfDoc.copyPages(pdfDoc, [pageIndex]);
-                    pdfDoc.insertPage(pageIndex + 1, copiedPage);
+                    const [copiedPage] = await pdfDoc.copyPages(pdfDoc, [pageIndex + offset]);
+                    pdfDoc.insertPage(pageIndex + offset + 1, copiedPage);
+                    offset++; // ページが追加されるたびにオフセットを増やす
                 }
                 
                 // 新しいPDFを生成
