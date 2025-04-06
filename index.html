@@ -216,7 +216,9 @@
         });
 
         function togglePageSelection(pageNumber) {
-            const pageElement = document.querySelector(`.page-preview[data-page-number="${pageNumber}"]`);
+            const pageElements = document.querySelectorAll('.page-preview');
+            const pageElement = pageElements[pageNumber];
+            
             if (selectedPages.has(pageNumber)) {
                 selectedPages.delete(pageNumber);
                 pageElement.classList.remove('selected');
@@ -250,51 +252,53 @@
         }
 
         async function updatePreview() {
+            if (!currentPdf) return;
+            
             try {
-                showLoading('プレビューを更新中...');
+                const arrayBuffer = await currentPdf.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                pdfDoc = await loadingTask.promise;
+                
                 previewContainer.innerHTML = '';
+                pageInfo.textContent = `全 ${pdfDoc.numPages} ページ`;
+                
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
                     const page = await pdfDoc.getPage(i);
-                    const viewport = page.getViewport({scale: 0.5});
+                    const viewport = page.getViewport({ scale: 0.5 });
                     
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
-                    await page.render({
+                    const renderContext = {
                         canvasContext: context,
                         viewport: viewport
-                    }).promise;
+                    };
+                    
+                    await page.render(renderContext).promise;
                     
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'page-preview';
-                    pageDiv.dataset.pageNumber = i - 1;
-                    
-                    // 選択状態を復元
                     if (selectedPages.has(i - 1)) {
                         pageDiv.classList.add('selected');
                     }
-                    
-                    const pageNumber = document.createElement('div');
-                    pageNumber.className = 'page-number';
-                    pageNumber.textContent = `ページ ${i}`;
+                    pageDiv.onclick = () => togglePageSelection(i - 1);
                     
                     const canvasContainer = document.createElement('div');
                     canvasContainer.className = 'canvas-container';
                     canvasContainer.appendChild(canvas);
+                    
+                    const pageNumber = document.createElement('div');
+                    pageNumber.className = 'page-number';
+                    pageNumber.textContent = i;
+                    
                     canvasContainer.appendChild(pageNumber);
-                    
                     pageDiv.appendChild(canvasContainer);
-                    pageDiv.addEventListener('click', () => togglePageSelection(i - 1));
-                    
                     previewContainer.appendChild(pageDiv);
                 }
-                pageInfo.textContent = `全${pdfDoc.numPages}ページ`;
             } catch (error) {
                 console.error('Error updating preview:', error);
-            } finally {
-                hideLoading();
             }
         }
 
@@ -372,85 +376,58 @@
         }
 
         async function deleteSelectedPages() {
-            if (selectedPages.size === 0) {
-                console.log('No pages selected for deletion');
-                return;
-            }
-
+            if (!currentPdf || selectedPages.size === 0) return;
+            
             try {
                 showLoading('ページを削除中...');
-                console.log('Starting page deletion...');
                 const arrayBuffer = await currentPdf.arrayBuffer();
-                const sourcePdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-                const newPdfDoc = await PDFLib.PDFDocument.create();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
                 
-                // 選択されていないページのみをコピー
-                const pages = await newPdfDoc.copyPages(
-                    sourcePdfDoc,
-                    Array.from({length: sourcePdfDoc.getPageCount()}, (_, i) => i)
-                        .filter(i => !selectedPages.has(i))
-                );
-                
-                for (const page of pages) {
-                    newPdfDoc.addPage(page);
+                // 選択されたページを逆順に削除（インデックスがずれないように）
+                const pagesToDelete = Array.from(selectedPages).sort((a, b) => b - a);
+                for (const pageIndex of pagesToDelete) {
+                    pdfDoc.removePage(pageIndex);
                 }
                 
-                const pdfBytes = await newPdfDoc.save();
-                currentPdf = new Blob([pdfBytes], { type: 'application/pdf' });
+                // 新しいPDFを生成
+                const modifiedPdfBytes = await pdfDoc.save();
+                currentPdf = new File([modifiedPdfBytes], currentPdf.name, { type: 'application/pdf' });
                 
                 // プレビューを更新
-                const arrayBuffer2 = await currentPdf.arrayBuffer();
-                pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer2}).promise;
-                
-                // 選択状態をクリア
-                selectedPages.clear();
                 await updatePreview();
-                
-                console.log('Page deletion completed successfully');
+                clearSelection(); // 選択状態をクリア
+                hideLoading();
             } catch (error) {
                 console.error('Error deleting pages:', error);
-            } finally {
                 hideLoading();
             }
         }
 
         async function duplicateSelectedPages() {
-            if (selectedPages.size === 0) {
-                console.log('No pages selected for duplication');
-                return;
-            }
-
+            if (!currentPdf || selectedPages.size === 0) return;
+            
             try {
                 showLoading('ページを複製中...');
-                console.log('Starting page duplication...');
                 const arrayBuffer = await currentPdf.arrayBuffer();
-                const sourcePdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-                const newPdfDoc = await PDFLib.PDFDocument.create();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
                 
-                // 元のPDFのページをコピー
-                const pages = await newPdfDoc.copyPages(sourcePdfDoc, Array.from({length: sourcePdfDoc.getPageCount()}, (_, i) => i));
-                for (let i = 0; i < pages.length; i++) {
-                    newPdfDoc.addPage(pages[i]);
-                    if (selectedPages.has(i)) {
-                        newPdfDoc.addPage(pages[i]);
-                    }
+                // 選択されたページを順番に複製
+                const pagesToDuplicate = Array.from(selectedPages).sort((a, b) => a - b);
+                for (const pageIndex of pagesToDuplicate) {
+                    const [copiedPage] = await pdfDoc.copyPages(pdfDoc, [pageIndex]);
+                    pdfDoc.insertPage(pageIndex + 1, copiedPage);
                 }
                 
-                const pdfBytes = await newPdfDoc.save();
-                currentPdf = new Blob([pdfBytes], { type: 'application/pdf' });
+                // 新しいPDFを生成
+                const modifiedPdfBytes = await pdfDoc.save();
+                currentPdf = new File([modifiedPdfBytes], currentPdf.name, { type: 'application/pdf' });
                 
                 // プレビューを更新
-                const arrayBuffer2 = await currentPdf.arrayBuffer();
-                pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer2}).promise;
-                
-                // 選択状態をクリア
-                selectedPages.clear();
                 await updatePreview();
-                
-                console.log('Page duplication completed successfully');
+                clearSelection(); // 選択状態をクリア
+                hideLoading();
             } catch (error) {
                 console.error('Error duplicating pages:', error);
-            } finally {
                 hideLoading();
             }
         }
