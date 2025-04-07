@@ -3,7 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor</title>
+    <title>PDF Editor - オンラインPDF編集ツール | motoya.click</title>
+    <meta name="description" content="無料のオンラインPDF編集ツール。PDFのページ複製、削除、結合が簡単にできます。ブラウザ上で直接操作可能。">
+    <meta name="keywords" content="PDF編集,PDF結合,PDF分割,オンラインツール,無料ツール">
+    <meta name="author" content="motoya">
+    <meta property="og:title" content="PDF Editor - オンラインPDF編集ツール">
+    <meta property="og:description" content="無料のオンラインPDF編集ツール。PDFのページ複製、削除、結合が簡単にできます。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pdf.motoya.click/">
+    <meta property="og:image" content="https://pdf.motoya.click/static/images/ogp.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://pdf.motoya.click/">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PDF Editor",
+      "description": "無料のオンラインPDF編集ツール。PDFのページ複製、削除、結合が簡単にできます。",
+      "url": "https://pdf.motoya.click/",
+      "applicationCategory": "Utility",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      },
+      "featureList": [
+        "PDFページの複製",
+        "PDFページの削除",
+        "PDFファイルの結合",
+        "ブラウザ上での直接編集"
+      ]
+    }
+    </script>
     <script src="static/js/pdf.js"></script>
     <script src="node_modules/pdf-lib/dist/pdf-lib.min.js"></script>
     <style>
@@ -166,6 +198,7 @@
     <div class="header">
         <h1>PDF Editor</h1>
         <div class="header-controls">
+            <a href="/help.html" class="page-operation">使い方</a>
             <button class="page-operation" onclick="duplicateSelectedPages()">選択ページを複製</button>
             <button class="page-operation" onclick="deleteSelectedPages()">選択ページを削除</button>
             <button class="page-operation" onclick="clearSelection()">選択を解除</button>

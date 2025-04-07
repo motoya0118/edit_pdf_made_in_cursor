@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor 使い方ガイド | motoya.click</title>
+    <meta name="description" content="PDF Editorの使い方を詳しく解説。PDFのページ複製、削除、結合の操作方法を説明します。">
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>PDF Editor 使い方ガイド</h1>
+        <div class="header-controls">
+            <a href="/" class="page-operation">PDF Editorに戻る</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="help-section">
+            <h2>基本的な使い方</h2>
+            <p>PDF Editorは、ブラウザ上でPDFファイルを編集できる無料ツールです。以下の操作が可能です：</p>
+            
+            <h3>1. PDFのアップロード</h3>
+            <p>「PDFをアップロード」ボタンをクリックして、編集したいPDFファイルを選択します。</p>
+            
+            <h3>2. ページの選択</h3>
+            <p>プレビュー表示されたページをクリックして選択します。複数のページを選択するには、Ctrlキー（MacではCommandキー）を押しながらクリックします。</p>
+            
+            <h3>3. ページ操作</h3>
+            <ul>
+                <li><strong>選択ページを複製</strong>: 選択したページをコピーして追加します</li>
+                <li><strong>選択ページを削除</strong>: 選択したページを削除します</li>
+                <li><strong>選択を解除</strong>: すべての選択を解除します</li>
+            </ul>
+            
+            <h3>4. PDFの結合</h3>
+            <p>「PDFを結合」ボタンをクリックして、別のPDFファイルを選択します。現在のPDFの後ろに結合されます。</p>
+            
+            <h3>5. PDFのダウンロード</h3>
+            <p>「PDFをダウンロード」ボタンをクリックして、編集したPDFを保存します。</p>
+        </div>
+
+        <div class="help-section">
+            <h2>よくある質問</h2>
+            
+            <h3>Q: 対応しているPDFのサイズ制限はありますか？</h3>
+            <p>A: ブラウザのメモリ制限により、非常に大きなPDFファイルは処理できない場合があります。</p>
+            
+            <h3>Q: 編集したPDFはサーバーに保存されますか？</h3>
+            <p>A: いいえ、すべての処理はブラウザ上で行われ、サーバーにファイルは保存されません。</p>
+            
+            <h3>Q: 対応しているブラウザは？</h3>
+            <p>A: 最新バージョンのChrome、Firefox、Safari、Edgeで動作します。</p>
+        </div>
+    </div>
+
+    <style>
+        .help-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .help-section h2 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .help-section h3 {
+            color: #444;
+            margin-top: 20px;
+        }
+        .help-section p, .help-section ul {
+            line-height: 1.6;
+            color: #666;
+        }
+        .help-section ul {
+            padding-left: 20px;
+        }
+        .page-operation {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .page-operation:hover {
+            opacity: 0.9;
+        }
+    </style>
+</body>
+</html> 
