@@ -14,6 +14,15 @@
     <meta property="og:image" content="https://pdf.motoya.click/static/images/ogp.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="https://pdf.motoya.click/">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-SCEPP60LEE"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-SCEPP60LEE');
+    </script>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -41,10 +50,11 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            padding-top: 100px; /* ヘッダーの高さ分の余白 */
+            /* max-width, margin, padding を削除 */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #fff; /* 念のため背景色指定 */
         }
         .header {
             position: fixed;
@@ -52,12 +62,10 @@
             left: 0;
             right: 0;
             background-color: white;
-            padding: 15px 20px;
+            /* padding を削除 */
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            /* display, justify-content, align-items は header-inner へ移動済み */
         }
         .header h1 {
             margin: 0;
@@ -67,45 +75,75 @@
             display: flex;
             gap: 10px;
         }
+        .header-inner { /* New style for header content container */
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         .container {
             display: flex;
             flex-direction: column;
             gap: 20px;
+            flex-grow: 1; /* 利用可能なスペースを埋める */
+            padding: 100px 20px 40px 20px; /* ヘッダー分top, 左右, フッター分bottomのpadding */
+            max-width: 1200px; /* コンテンツ幅を制限 */
+            margin: 0 auto; /* 中央寄せ */
+            width: 100%; /* これがないとmax-widthが効かない場合がある */
+            box-sizing: border-box; /* paddingを含めて幅計算 */
         }
         .operation-section {
             border: 1px solid #ddd;
             padding: 20px;
             border-radius: 5px;
         }
-        button {
+        /* ボタンとヘッダー内のリンクに共通スタイルを適用 */
+        button, .header-controls a {
+            display: inline-block; /* aタグをボタンのように表示 */
             padding: 10px 20px;
             color: white;
+            text-decoration: none; /* リンクの下線を消す */
             border: none;
             border-radius: 4px;
             cursor: pointer;
             margin: 5px;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, opacity 0.3s; /* opacityもtransition対象に */
+            text-align: center;
         }
-        button:hover {
-            opacity: 0.9;
+        button:hover, .header-controls a:hover {
+            opacity: 0.9; /* 共通のホバー効果 */
         }
-        .page-operation {
-            background-color: #4CAF50; /* 緑色 - ページ操作 */
+        /* ページ操作ボタン（複製、削除など） */
+        button.page-operation {
+            background-color: #4CAF50; /* 緑色 */
         }
-        .page-operation:hover {
+        button.page-operation:hover {
             background-color: #45a049;
+            opacity: 1;
+        }
+        /* ヘッダーの「使い方」リンク */
+        .header-controls a.page-operation {
+            background-color: #757575; /* 灰色 */
+        }
+        .header-controls a.page-operation:hover {
+            background-color: #616161; /* 少し暗い灰色 */
+            opacity: 1;
         }
         .merge-operation {
             background-color: #2196F3; /* 青色 - 結合操作 */
         }
         .merge-operation:hover {
             background-color: #1976D2;
+            opacity: 1; /* 個別の色変更を優先 */
         }
         .download-operation {
             background-color: #FF9800; /* オレンジ色 - ダウンロード操作 */
         }
         .download-operation:hover {
             background-color: #F57C00;
+            opacity: 1; /* 個別の色変更を優先 */
         }
         input[type="file"] {
             margin: 10px 0;
@@ -178,6 +216,28 @@
             font-size: 18px;
             color: #333;
         }
+        /* フッター */
+        footer {
+            /* margin-top は不要に (containerのpadding-bottomで調整) */
+            border-top: 1px solid #dee2e6; /* 少し濃い境界線 */
+            font-size: 14px;
+            background-color: #f8f9fa; /* 薄いグレーの背景色 */
+            color: #343a40; /* 少し濃い文字色 */
+            width: 100%; /* 幅を100%に */
+        }
+        footer a {
+            color: #007bff; /* Bootstrapのプライマリカラーに合わせたリンク色 */
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        .footer-inner { /* New style for footer content container */
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px;
+            text-align: center;
+        }
         .loading-container {
             text-align: center;
         }
@@ -196,16 +256,18 @@
     </div>
 
     <div class="header">
-        <h1>PDF Editor</h1>
-        <div class="header-controls">
-            <a href="/help.html" class="page-operation">使い方</a>
-            <button class="page-operation" onclick="duplicateSelectedPages()">選択ページを複製</button>
-            <button class="page-operation" onclick="deleteSelectedPages()">選択ページを削除</button>
-            <button class="page-operation" onclick="clearSelection()">選択を解除</button>
-            <button class="merge-operation" onclick="document.getElementById('mergeFile').click()">PDFを結合</button>
-            <input type="file" id="mergeFile" accept=".pdf" style="display: none" onchange="mergePDFs()">
-            <button class="download-operation" onclick="downloadModifiedPDF()">PDFをダウンロード</button>
-        </div>
+        <div class="header-inner"> <!-- Added container -->
+            <h1>PDF Editor</h1>
+            <div class="header-controls">
+                <a href="/help.html" class="page-operation">使い方</a>
+                <button class="page-operation" onclick="duplicateSelectedPages()">選択ページを複製</button>
+                <button class="page-operation" onclick="deleteSelectedPages()">選択ページを削除</button>
+                <button class="page-operation" onclick="clearSelection()">選択を解除</button>
+                <button class="merge-operation" onclick="document.getElementById('mergeFile').click()">PDFを結合</button>
+                <input type="file" id="mergeFile" accept=".pdf" style="display: none" onchange="mergePDFs()">
+                <button class="download-operation" onclick="downloadModifiedPDF()">PDFをダウンロード</button>
+            </div>
+        </div> <!-- Closed container -->
     </div>
 
     <div class="container">
@@ -469,5 +531,12 @@
             }
         }
     </script>
+
+    <footer>
+        <div class="footer-inner"> <!-- Added container -->
+            作成者: <a href="https://x.com/puchan_pig" target="_blank" rel="noopener noreferrer">motoya</a> |
+            <a href="privacy.html">利用規約</a>
+        </div> <!-- Closed container -->
+    </footer>
 </body>
-</html> 
+</html>
